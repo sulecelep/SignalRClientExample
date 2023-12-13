@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--Önce Signal  R sonra JQuery -->
+    <script src="signalr.min.js"></script>
+    <script src="jquery.min.js"></script>
+    <script>
+      $(document).ready(() => {
+        const connection = new signalR.HubConnectionBuilder()
+          .withUrl("https://localhost:7229/myhub")
+          .withAutomaticReconnect([1000, 2000]) // bağlantı koptuğunda kullanılır 0 2 10 30sn aralıklarla tekrar bağlanmayı deneyecek
+          .build();
+
+        async function start() {
+          try {
+            await connection.start();
+          } catch (error) {
+            setTimeout(() => start(), 2000);
+          }
+        }
+        //connection.start(); //yukarıda start fonksiyonunu kendimiz yazdık
+        start();
+        const durum = $("#durum");
+        connection.onreconnecting((error) => {
+          durum.css("background-color", "blue");
+          durum.css("color", "white");
+          durum.html("Bağlantı kuruluyor.....");
+          durum.fadeIn(2000, () => {
+            setTimeout(() => {
+              durum.fadeOut(2000);
+            }, 2000);
+          });
+        });
+        connection.onreconnected((connectionId) => {
+          durum.css("background-color", "green");
+          durum.css("color", "white");
+          durum.html("Bağlantı kuruldu.....");
+          durum.fadeIn(2000, () => {
+            setTimeout(() => {
+              durum.fadeOut(2000);
+            }, 2000);
+          });
+        });
+        connection.onclose((connectionId) => {
+          durum.css("background-color", "red");
+          durum.css("color", "white");
+          durum.html("Bağlanılamadı.....");
+          durum.fadeIn(2000, () => {
+            setTimeout(() => {
+              durum.fadeOut(2000);
+            }, 2000);
+          });
+        });
+        $("#btnGonder").click(() => {
+          let message = $("#txtMessage").val();
+          connection
+            .invoke("SendMessageAsync", message)
+            .catch((error) =>
+              console.log(`Mesaj gönderilirken hata oluştu. ${error}`)
+            );
+        });
+        connection.on("receiveMessage", (message) => {
+          $("#mesajlar").append(message + "<br/>");
+        });
+
+        //bağlantı hiç kurulmadıysa bu fonksiyon kullanılır
+      });
+    </script>
+    <title>Signal R</title>
+  </head>
+  <body>
+    <div id="durum" style="display: none"></div>
+    <input type="text" id="txtMessage" />
+    <button id="btnGonder">Gönder</button>
+
+    <div id="mesajlar"></div>
+  </body>
+</html>
+
+<!--
+    onreconnecting : Kopan bağlantıdan sonra yeniden bağlanma girişimlerini başlatmadan önce
+                     fırlatılan/tetiklenen eventtir.
+
+    onreconnected : yeniden bağlantı gerçekleştiğinde tetiklenen fonksiyondur.
+
+    onclose : yeniden bağlantı girişimlerinin sonuçsuz kaldığı durumlarda fırlatılır.
+
+
+
+
+
+-->
